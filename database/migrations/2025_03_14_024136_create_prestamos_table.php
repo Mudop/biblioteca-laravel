@@ -7,19 +7,18 @@ use Illuminate\Support\Facades\Schema;
 class CreatePrestamosTable extends Migration
 {
     public function up()
-    {
-        Schema::create('prestamos', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('libro_id')->constrained('libros')->onDelete('cascade');
-            $table->foreignId('usuario_id')->constrained('usuarios')->onDelete('cascade');
-            $table->date('fecha_prestamo');
-            $table->date('fecha_devolucion')->nullable();
-            $table->timestamps();
-        });
-    }
+{
+    Schema::table('prestamos', function (Blueprint $table) {
+        $table->foreignId('usuario_id')->constrained('usuarios')->onDelete('cascade')->after('id');
+    });
+}
 
-    public function down()
-    {
-        Schema::dropIfExists('prestamos');
-    }
+public function down()
+{
+    Schema::table('prestamos', function (Blueprint $table) {
+        $table->dropForeign(['usuario_id']);
+        $table->dropColumn('usuario_id');
+    });
+}
+
 }

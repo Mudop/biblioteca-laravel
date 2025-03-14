@@ -9,12 +9,7 @@ class Prestamo extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['libro_id', 'usuario_id', 'fecha_prestamo', 'fecha_devolucion'];
-
-    public function libro()
-    {
-        return $this->belongsTo(Libro::class);
-    }
+    protected $fillable = ['usuario_id', 'libro_id', 'fecha_prestamo', 'fecha_devolucion', 'devuelto'];
 
     public function usuario()
     {

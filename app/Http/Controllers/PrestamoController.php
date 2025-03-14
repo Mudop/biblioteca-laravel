@@ -8,50 +8,98 @@ use Illuminate\Http\Request;
 
 class PrestamoController extends Controller
 {
-    // Obtener todos los préstamos
-    public function index()
+    // Obtener todos los préstamos (Admin ve todos, usuario solo los suyos)
+    public function index(Request $request)
     {
-        return response()->json(Prestamo::with(['libro', 'usuario'])->get());
+        if ($request->user()->rol === 'admin') {
+            $prestamos = Prestamo::all();
+        } else {
+            $prestamos = Prestamo::where('usuario_id', $request->user()->id)->get();
+        }
+
+        return response()->json($prestamos);
     }
 
-    // Registrar un préstamo
+    // Registrar un préstamo (Solo usuarios autenticados)
     public function store(Request $request)
     {
         $request->validate([
             'libro_id' => 'required|exists:libros,id',
-            'usuario_id' => 'required|exists:usuarios,id',
             'fecha_prestamo' => 'required|date',
+            'fecha_devolucion' => 'nullable|date|after:fecha_prestamo',
         ]);
 
-        // Verificar si el libro está disponible
-        $libro = Libro::findOrFail($request->libro_id);
-        if (!$libro->disponible) {
-            return response()->json(['error' => 'Este libro no está disponible'], 400);
-        }
+        $prestamo = Prestamo::create([
+            'usuario_id' => $request->user()->id, // Asigna el usuario autenticado
+            'libro_id' => $request->libro_id,
+            'fecha_prestamo' => $request->fecha_prestamo,
+            'fecha_devolucion' => $request->fecha_devolucion,
+            'devuelto' => false,
+        ]);
 
-        // Marcar el libro como no disponible
-        $libro->update(['disponible' => false]);
-
-        // Crear el préstamo
-        $prestamo = Prestamo::create($request->all());
-
-        return response()->json($prestamo, 201);
+        return response()->json([
+            'message' => 'Préstamo registrado correctamente',
+            'prestamo' => $prestamo
+        ], 201);
     }
 
-    // Registrar devolución de un libro
-    public function devolver($id)
+    // Registrar devolución de un libro (Solo el dueño o admin puede marcarlo como devuelto)
+    public function devolver(Request $request, $id)
     {
         $prestamo = Prestamo::findOrFail($id);
 
-        if ($prestamo->fecha_devolucion !== null) {
+        // Verifica si el usuario es admin o si el préstamo le pertenece
+        if ($request->user()->rol !== 'admin' && $prestamo->usuario_id !== $request->user()->id) {
+            return response()->json(['error' => 'No tienes permisos para modificar este préstamo'], 403);
+        }
+
+        if ($prestamo->devuelto) {
             return response()->json(['error' => 'Este préstamo ya fue devuelto'], 400);
         }
 
-        $prestamo->update(['fecha_devolucion' => now()]);
+        $prestamo->update([
+            'fecha_devolucion' => now(),
+            'devuelto' => true,
+        ]);
 
         // Marcar el libro como disponible nuevamente
         $prestamo->libro->update(['disponible' => true]);
 
-        return response()->json($prestamo);
+        return response()->json([
+            'message' => 'Préstamo devuelto correctamente',
+            'prestamo' => $prestamo
+        ]);
+    }
+
+    // Actualizar un préstamo (Solo el dueño o admin puede modificarlo)
+    public function update(Request $request, Prestamo $prestamo)
+    {
+        if ($request->user()->rol !== 'admin' && $prestamo->usuario_id !== $request->user()->id) {
+            return response()->json(['error' => 'No tienes permisos para modificar este préstamo'], 403);
+        }
+
+        $request->validate([
+            'fecha_devolucion' => 'nullable|date|after:fecha_prestamo',
+            'devuelto' => 'boolean',
+        ]);
+
+        $prestamo->update($request->all());
+
+        return response()->json([
+            'message' => 'Préstamo actualizado correctamente',
+            'prestamo' => $prestamo
+        ]);
+    }
+
+    // Eliminar un préstamo (Solo admin puede eliminarlo)
+    public function destroy(Request $request, Prestamo $prestamo)
+    {
+        if ($request->user()->rol !== 'admin') {
+            return response()->json(['error' => 'No tienes permisos para eliminar este préstamo'], 403);
+        }
+
+        $prestamo->delete();
+
+        return response()->json(['message' => 'Préstamo eliminado correctamente']);
     }
 }
