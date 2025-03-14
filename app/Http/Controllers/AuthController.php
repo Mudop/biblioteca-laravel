@@ -4,36 +4,36 @@ namespace App\Http\Controllers;
 
 use App\Models\Usuario;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    // Registro de usuario
+    // ✅ Registro de usuario
     public function register(Request $request)
-{
-    $request->validate([
-        'nombre' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:usuarios',
-        'password' => 'required|string|min:6',
-        'rol' => 'in:admin,usuario' // Solo permite "admin" o "usuario"
-    ]);
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:usuarios',
+            'password' => 'required|string|min:6',
+            'rol' => 'in:admin,usuario' // Solo permite "admin" o "usuario"
+        ]);
 
-    $usuario = Usuario::create([
-        'nombre' => $request->nombre,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-        'rol' => $request->rol ?? 'usuario' // Si no se especifica, será "usuario"
-    ]);
+        $usuario = Usuario::create([
+            'nombre' => $request->nombre,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'rol' => $request->rol ?? 'usuario' // Si no se especifica, será "usuario"
+        ]);
 
-    return response()->json([
-        'message' => 'Usuario registrado correctamente',
-        'user' => $usuario
-    ], 201);
-}
+        return response()->json([
+            'message' => 'Usuario registrado correctamente',
+            'user' => $usuario
+        ], 201);
+    }
 
-
-    // Login de usuario
+    // ✅ Login de usuario
     public function login(Request $request)
     {
         $request->validate([
@@ -47,18 +47,24 @@ class AuthController extends Controller
             return response()->json(['error' => 'Credenciales incorrectas'], 401);
         }
 
+        // ✅ Eliminar tokens antiguos (opcional)
+        $usuario->tokens()->delete();
+
+        // ✅ Crear nuevo token
         $token = $usuario->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Inicio de sesión exitoso',
+            'user' => $usuario, // Enviar información del usuario
             'token' => $token
         ], 200);
     }
 
-    // Logout de usuario
+    // ✅ Logout de usuario
     public function logout(Request $request)
     {
-        $request->user()->tokens()->delete();
+        Auth::guard('web')->logout(); // Cerrar sesión en web
+        $request->user()->tokens()->delete(); // Borrar todos los tokens activos
 
         return response()->json([
             'message' => 'Sesión cerrada correctamente'

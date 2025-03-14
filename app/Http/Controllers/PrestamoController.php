@@ -22,54 +22,41 @@ class PrestamoController extends Controller
 
     // Registrar un préstamo (Solo usuarios autenticados)
     public function store(Request $request)
-    {
-        $request->validate([
-            'libro_id' => 'required|exists:libros,id',
-            'fecha_prestamo' => 'required|date',
-            'fecha_devolucion' => 'nullable|date|after:fecha_prestamo',
-        ]);
+{
+    $request->validate([
+        'libro_id' => 'required|exists:libros,id',
+    ]);
 
-        $prestamo = Prestamo::create([
-            'usuario_id' => $request->user()->id, // Asigna el usuario autenticado
-            'libro_id' => $request->libro_id,
-            'fecha_prestamo' => $request->fecha_prestamo,
-            'fecha_devolucion' => $request->fecha_devolucion,
-            'devuelto' => false,
-        ]);
+    $prestamo = Prestamo::create([
+        'usuario_id' => auth()->id(),
+        'libro_id' => $request->libro_id,
+        'fecha_prestamo' => now(), // 📌 Se asigna la fecha actual automáticamente
+        'devuelto' => false,
+    ]);
 
-        return response()->json([
-            'message' => 'Préstamo registrado correctamente',
-            'prestamo' => $prestamo
-        ], 201);
-    }
+    return response()->json($prestamo, 201);
+}
+
+    
 
     // Registrar devolución de un libro (Solo el dueño o admin puede marcarlo como devuelto)
-    public function devolver(Request $request, $id)
-    {
-        $prestamo = Prestamo::findOrFail($id);
+    public function devolver($id)
+{
+    $prestamo = Prestamo::find($id);
 
-        // Verifica si el usuario es admin o si el préstamo le pertenece
-        if ($request->user()->rol !== 'admin' && $prestamo->usuario_id !== $request->user()->id) {
-            return response()->json(['error' => 'No tienes permisos para modificar este préstamo'], 403);
-        }
-
-        if ($prestamo->devuelto) {
-            return response()->json(['error' => 'Este préstamo ya fue devuelto'], 400);
-        }
-
-        $prestamo->update([
-            'fecha_devolucion' => now(),
-            'devuelto' => true,
-        ]);
-
-        // Marcar el libro como disponible nuevamente
-        $prestamo->libro->update(['disponible' => true]);
-
-        return response()->json([
-            'message' => 'Préstamo devuelto correctamente',
-            'prestamo' => $prestamo
-        ]);
+    if (!$prestamo) {
+        return response()->json(['error' => 'Préstamo no encontrado'], 404);
     }
+
+    if ($prestamo->devuelto) {
+        return response()->json(['error' => 'El libro ya fue devuelto'], 400);
+    }
+
+    $prestamo->update(['devuelto' => true]);
+
+    return response()->json(['message' => 'Libro devuelto correctamente']);
+}
+
 
     // Actualizar un préstamo (Solo el dueño o admin puede modificarlo)
     public function update(Request $request, Prestamo $prestamo)

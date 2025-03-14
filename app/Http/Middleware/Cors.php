@@ -11,10 +11,10 @@ class Cors
     {
         $response = $next($request);
 
-        $response->headers->set('Access-Control-Allow-Origin', 'http://localhost:5173'); // ✅ React URL
-        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        $response->headers->set('Access-Control-Allow-Credentials', 'true'); // ✅ Necesario para Sanctum
+        $response->header('Access-Control-Allow-Origin', '*'); // Asegúrate de que coincide con el frontend
+        $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-XSRF-TOKEN');
+        $response->header('Access-Control-Allow-Credentials', 'true');
 
         return $response;
     }
