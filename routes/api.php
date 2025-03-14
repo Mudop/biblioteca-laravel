@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LibroController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\PrestamoController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // 📌 Rutas de Autenticación (Públicas)
@@ -16,6 +17,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Cerrar sesión
     Route::post('logout', [AuthController::class, 'logout']);
 
+    // 📌 Ruta para el Dashboard
+    Route::get('/dashboard', function (Request $request) {
+        return response()->json([
+            'libros' => \App\Models\Libro::count(),
+            'prestamos' => \App\Models\Prestamo::where('devuelto', false)->count(),
+            'usuarios' => \App\Models\Usuario::count(),
+        ]);
+    });
+
     // 📌 Rutas SOLO PARA ADMIN
     Route::middleware('role:admin')->group(function () {
         Route::apiResource('libros', LibroController::class);
@@ -23,15 +33,11 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // 📌 Rutas PARA ADMIN Y USUARIOS (Con permisos específicos)
-    Route::middleware('role:usuario')->group(function () {
-        Route::get('prestamos', [PrestamoController::class, 'index']); // Usuario solo ve sus préstamos
-        Route::post('prestamos', [PrestamoController::class, 'store']); // Crea su préstamo
-        Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update']); // Solo puede modificar los suyos
-        Route::put('prestamos/{id}/devolver', [PrestamoController::class, 'devolver']); // Solo dueños o admin pueden devolver libros
-    });
+    Route::get('prestamos', [PrestamoController::class, 'index']); // Usuario solo ve sus préstamos
+    Route::post('prestamos', [PrestamoController::class, 'store']); // Crea su préstamo
+    Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update']); // Solo puede modificar los suyos
+    Route::put('prestamos/{id}/devolver', [PrestamoController::class, 'devolver']); // Solo dueños o admin pueden devolver libros
 
     // 📌 Eliminar préstamos (Solo admin)
-    Route::middleware('role:admin')->group(function () {
-        Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy']);
-    });
+    Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->middleware('role:admin');
 });
